@@ -4,7 +4,6 @@ import sys
 import time
 import subprocess
 import threading
-from datetime import datetime
 import os
 import configparser
 import psycopg2
