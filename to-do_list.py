@@ -4,6 +4,7 @@ import sys
 import time
 import subprocess
 import threading
+import platform
 import os
 import configparser
 import psycopg2
@@ -16,6 +17,7 @@ from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from datetime import datetime, timedelta
 import pytz
+from linux_ds import install_postgres
 
 def parse_timestamp(timestamp_str):
     return datetime.strptime(timestamp_str, '%Y-%m-%d %H:%M')
@@ -145,6 +147,18 @@ def typing_effect(text, delay=0.025):
         time.sleep(delay)
 
 
+
+def loading_animation(text, duration):
+    sys.stdout.write(text)
+    sys.stdout.flush()
+    start_time = time.time()
+    while time.time() - start_time < duration:
+        for i in range(4):
+            sys.stdout.write('\r' + text + '.' * i)
+            sys.stdout.flush()
+            time.sleep(0.5)
+        sys.stdout.write('\r' + text + '   ')
+        sys.stdout.flush()
 
 
 
@@ -402,45 +416,110 @@ def get_pending_tasks():
 
 
 def initialize():
-    typing_effect("Initializing...")
-    time.sleep(3)
-
-    db_config = {
-        'host': input('Enter database host: '),
-        'database': input('Enter database name: '),
-        'user': input('Enter database user: '),
-        'password': getpass('Enter database password: ')
-    }
-    typing_effect("\n\n\nSaving db config....")
-    time.sleep(2)
-    save_db_config(db_config)
-    print("\ndb config saved successfully")
-
-
-    # Connect to the database
-    conn = psycopg2.connect(**db_config)
-
-    # Create a cursor object
-    cur = conn.cursor()
-
-    # Create the table
-    cur.execute("""
-        CREATE TABLE IF NOT EXISTS todo (
-            id SERIAL PRIMARY KEY,
-            task TEXT NOT NULL,
-            description TEXT,
-            due_date TIMESTAMP,
-            completed BOOLEAN NOT NULL DEFAULT FALSE
-        )
-    """)
+    loading_animation("Initializing", 2)
+    print("\n\n")
+    
+    ###################
+    loading_animation("Identifying OS type", 3)
+    print("\n\n")    
+    system = platform.system()
+    match system:
+        case 'Linux':
+            loading_animation("System Identified as Linux, starting download script", 3)
+            install_postgres()
+            print("Postgresql installed successfully\n")
+            loading_animation("Configuring and Linking Database", 4)
+            db_config = {
+            'host': "localhost",
+            'database': "to_do_db",
+            'user': "postgres",
+            'password': ""
+            }
+            loading_animation("\n\n\nSaving db config", 2)
+            save_db_config(db_config)
+            print("\ndb config saved successfully")
 
 
-    conn.commit()
-    cur.close()
-    conn.close()
+            loading_animation("Installing Packages", 4)
+            os.system('pip install -r requirements.txt')
+            print("\n\n")
+            typing_effect("Packages installed successfully!")
 
-    print("db configured successfully!😁 You can now start by adding tasks")
+            # Connect to the database
+            conn = psycopg2.connect(**db_config)
 
+            # Create a cursor object
+            cur = conn.cursor()
+
+            # Create the table
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS todo (
+                    id SERIAL PRIMARY KEY,
+                    task TEXT NOT NULL,
+                    description TEXT,
+                    due_date TIMESTAMP,
+                    completed BOOLEAN NOT NULL DEFAULT FALSE
+                )
+            """)
+
+
+            conn.commit()
+            cur.close()
+            conn.close()
+
+            print("db configured successfully!😁 You can now start by adding tasks")
+
+        case 'Windows':
+            typing_effect("The download script dosen't support windows OS for now. Please follow the documentation on installing postgresql on windows")
+        case 'Darwin':
+            typing_effect("The download script dosen't support MacOS for now. Please follow the documentation to install and configure postgresql on MacOS\n\n")
+        case _:
+            typing_effect("System not identified, please follow the documentation to install and configure postgresql on your OS\n\n")
+
+
+    ###################
+    if system == "Windows" or "Darwin" or "_":
+        print("\n")
+        db_config = {
+            'host': input('Enter database host: '),
+            'database': input('Enter database name: '),
+            'user': input('Enter database user: '),
+            'password': getpass('Enter database password: ')
+        }
+        loading_animation("\n\n\nSaving db config", 2)
+        save_db_config(db_config)
+        print("\ndb config saved successfully")
+
+        loading_animation("Installing Packages", 4)
+        os.system('pip install -r requirements.txt')
+        print("\n\n")
+        typing_effect("Packages installed successfully!")
+
+
+        # Connect to the database
+        conn = psycopg2.connect(**db_config)
+
+        # Create a cursor object
+        cur = conn.cursor()
+
+        # Create the table
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS todo (
+                id SERIAL PRIMARY KEY,
+                task TEXT NOT NULL,
+                description TEXT,
+                due_date TIMESTAMP,
+                completed BOOLEAN NOT NULL DEFAULT FALSE
+            )
+        """)
+
+
+        conn.commit()
+        cur.close()
+        conn.close()
+
+        print("db configured successfully!😁 You can now start by adding tasks")
+        os.system('cls')
     
 
     starting()
